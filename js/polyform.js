@@ -19,13 +19,14 @@ Polyform = (function() {
         camera.setTarget(BABYLON.Vector3.Zero());
         camera.attachControl(canvas, false);
 
-        var light = new BABYLON.HemisphericLight("light1", new BABYLON.Vector3(0, 1, 0), this.scene);
-        light.intensity = .5;
+        var light = new BABYLON.DirectionalLight("Dir0", new BABYLON.Vector3(0, -1, 0), this.scene);
+        light.diffuse = new BABYLON.Color3(1, 1, 1);
+        light.specular = new BABYLON.Color3(1, 1, 1);
+        light.intensity = 0.5;
 
         var x, y, z;
         for (var i = 0; i < this.nbTriangle*3; i++) {
             var position = this.area.clone();
-
             position.x *= Math.random() - 0.5;
             position.y *= Math.random() - 0.5;
             position.z *= Math.random() - 0.5;
@@ -33,27 +34,45 @@ Polyform = (function() {
             this.points.push(position);
         }
 
-        var vertices = [];
+        var positions = [];
         var indices = [];
+        var normals = [];
         for (var i = 0; i < this.points.length; i++) {
-            vertices.push(this.points[i].x, this.points[i].y, this.points[i].z);
+            positions.push(this.points[i].x, this.points[i].y, this.points[i].z);
             indices.push(i);
         }   
 
-        console.log(this.points);
         this.vd = new BABYLON.VertexData();
-        this.vd.set(vertices, BABYLON.VertexBuffer.PositionKind);
+        this.vd.positions = positions;
+        BABYLON.VertexData.ComputeNormals(positions, indices, normals);
+        this.vd.normals = normals;
 
         this.mesh = new BABYLON.Mesh('main', this.scene);
-        this.vd.applyToMesh(this.mesh);
+        this.vd.applyToMesh(this.mesh, true);
         this.mesh.setIndices(indices);
+
+        this.mesh.material = new BABYLON.StandardMaterial('mainMaterial', this.scene);
+        this.mesh.material.backFaceCulling = false;
     };
 
+
+    pf.prototype.updateMesh = function () {
+        this.mesh.updateMeshPositions(function (positions) {
+            for (var i = 0; i < this.points.length; i++) {
+                positions[i*3] = this.points[i].x;
+                positions[i*3+1] = this.points[i].y;
+                positions[i*3+2] = this.points[i].z;
+            }
+        }.bind(this), true) 
+    }
 
     pf.prototype.render = function() {
 
         // Register a render loop to repeatedly render the scene
         this.engine.runRenderLoop(function() {
+            if (this.needUpdate) {
+                this.updateMesh();
+            }
             this.scene.render();
         }.bind(this));
         // Watch for browser/canvas resize events
